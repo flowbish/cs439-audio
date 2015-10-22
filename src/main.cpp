@@ -11,12 +11,16 @@ AudioOutputAnalog        dac1;           //xy=614,357
 AudioConnection          patchCord1(synth1, dac1);
 // GUItool: end automatically generated code
 
+// should make these some kind of compile options
 const int WAVEFORM = WAVEFORM_SINE;
-const int FREQ_LOW = 440;
-const int FREQ_HIGH = 400;
-const int DURATION = 200;
+const int FREQ_LOW = 7000;
+const int FREQ_HIGH = 8000;
+const int DURATION = 50;
 const int PACKET_LEN = 10;
 
+void send_demo();
+void send_packet_serial(char *);
+void send_packet(char *);
 void send_byte(char);
 void send_preamble(void);
 inline void send_bit_high(void);
@@ -42,66 +46,103 @@ uint8_t crc8(const void *vptr, int len) {
 
 extern "C" int main(void) {
 
+    // initialize serial connection
     Serial.begin(115200);
 
+    // allocate audio memory
     AudioMemory(18);
 
+    // pin 2 is connected to a button to ground, for a simple demo
+    pinMode(2, INPUT_PULLUP);
+
 	while (1) {
-        String input("");
         if (Serial.available() > 0) {
-            input = Serial.readStringUntil('\n');
+            String input = Serial.readStringUntil('\n');
+
+            // don't send packet if input is blank
+            if (input != "" && input != "\n") {
+                // allocate packet buffer and set the bytes within
+                char packet[PACKET_LEN];
+                memset(packet, 0, sizeof(packet));
+                strncpy(packet, input.c_str(), PACKET_LEN);
+
+                send_packet_serial(packet);
+            }
         }
-
-        // don't send packet if input is blank
-        if (input == "" || input == "\n") {
-            continue;
+        else if (!digitalRead(2)) {
+            // pin 2 connected to ground, send demo packet
+            send_demo();
         }
-
-        // allocate packet buffer and set the bytes within
-        char packet[PACKET_LEN];
-        memset(packet, 0, sizeof(packet));
-        strncpy(packet, input.c_str(), PACKET_LEN);
-
-        // calculate CRC8 and insert in last index
-        char crc = crc8(packet, PACKET_LEN);
-
-        // generate a string representing the bytes of the packet being sent
-        char packet_str[100], hex[8];
-        size_t i;
-        sprintf(packet_str, "0x55 0x55");
-        for (i = 0; i < PACKET_LEN; i++) {
-            snprintf(hex, 7, " 0x%02x", packet[i]);
-            strcat(packet_str, hex);
-        }
-        sprintf(hex, "0x%02x\r\n", crc);
-        strcat(packet_str, hex);
-        Serial.print(packet_str);
-        
-        // start sending bits, disable interrupts
-        //__disable_irq();
-
-        // send start of packet
-        send_preamble();
-
-        // send packet
-        for (i = 0; i < PACKET_LEN+1; i++) {
-            send_byte(packet[i]);
-        }
-
-        // send crc
-        send_byte(crc);
-
-        // end sending bit, enable interrupts
-        //__enable_irq();
-
-        // disable sound
-        AudioNoInterrupts();
-        synth1.begin(0.0, FREQ_HIGH, WAVEFORM);
-        AudioInterrupts();
-
-        // reset last bit played
-        last_bit = -1;
 	}
+}
+
+/**
+ * Send out a single demonstration packet to profess the professor.
+ */
+void send_demo() {
+    // allocate packet buffer and set the bytes within
+    char packet[PACKET_LEN];
+    memset(packet, 0, sizeof(packet));
+    strncpy(packet, "Hi Robin!!", PACKET_LEN);
+
+    send_packet(packet);
+}
+
+/**
+ * Send out a packet and also send back a confirmation over serial of the byte
+ *  sequence sent.
+ */
+void send_packet_serial(char *packet) {
+    // calculate CRC8
+    char crc = crc8(packet, PACKET_LEN);
+
+    // generate a string representing the bytes of the packet being sent
+    char packet_str[100], hex[8];
+    size_t i;
+    sprintf(packet_str, "0x55 0x55");
+    for (i = 0; i < PACKET_LEN; i++) {
+        snprintf(hex, 7, " 0x%02x", packet[i]);
+        strcat(packet_str, hex);
+    }
+    sprintf(hex, "0x%02x\r\n", crc);
+    strcat(packet_str, hex);
+    Serial.print(packet_str);
+
+    // send the packet!
+    send_packet(packet);
+}
+
+void send_packet(char *packet) {
+    // packet must be at least PACKET_LEN bytes
+
+    // calculate CRC8
+    char crc = crc8(packet, PACKET_LEN);
+
+    // start sending bits, disable interrupts
+    __disable_irq();
+
+    // send start of packet
+    send_preamble();
+
+    // send packet
+    int i;
+    for (i = 0; i < PACKET_LEN+1; i++) {
+        send_byte(packet[i]);
+    }
+
+    // send crc
+    send_byte(crc);
+
+    // disable sound
+    AudioNoInterrupts();
+    synth1.begin(0.0, FREQ_HIGH, WAVEFORM);
+    AudioInterrupts();
+
+    // reset last bit played
+    last_bit = -1;
+
+    // end sending bit, enable interrupts
+    __enable_irq();
 }
 
 // 8 pairs of low, high
