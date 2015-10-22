@@ -11,23 +11,21 @@ AudioOutputAnalog        dac1;           //xy=614,357
 AudioConnection          patchCord1(synth1, dac1);
 // GUItool: end automatically generated code
 
-#define WAVEFORM WAVEFORM_SINE
-#define FREQ_LOW 7000
-#define FREQ_HIGH 8000
-#define DURATION 50
-#define PACKET_LEN 10
+const int WAVEFORM = WAVEFORM_SINE;
+const int FREQ_LOW = 440;
+const int FREQ_HIGH = 400;
+const int DURATION = 200;
+const int PACKET_LEN = 10;
 
-String process_string(String);
 void send_byte(char);
 void send_preamble(void);
 inline void send_bit_high(void);
 inline void send_bit_low(void);
-#define BIT_LOW 0
-#define BIT_HIGH 1
+const int BIT_LOW = 0;
+const int BIT_HIGH = 1;
 int last_bit = -1;
 
-uint8_t crc8(const void *vptr, int len)
-{
+uint8_t crc8(const void *vptr, int len) {
 	const uint8_t *data = (const uint8_t*)vptr;
 	uint16_t crc = 0;
 	int i, j;
@@ -42,9 +40,8 @@ uint8_t crc8(const void *vptr, int len)
 	return (uint8_t)(crc >> 8);
 } 
 
-extern "C" int main(void)
-{
-    
+extern "C" int main(void) {
+
     Serial.begin(115200);
 
     AudioMemory(18);
@@ -67,15 +64,26 @@ extern "C" int main(void)
 
         // calculate CRC8 and insert in last index
         char crc = crc8(packet, PACKET_LEN);
-    
+
+        // generate a string representing the bytes of the packet being sent
+        char packet_str[100], hex[8];
+        size_t i;
+        sprintf(packet_str, "0x55 0x55");
+        for (i = 0; i < PACKET_LEN; i++) {
+            snprintf(hex, 7, " 0x%02x", packet[i]);
+            strcat(packet_str, hex);
+        }
+        sprintf(hex, "0x%02x\r\n", crc);
+        strcat(packet_str, hex);
+        Serial.print(packet_str);
+        
         // start sending bits, disable interrupts
-        __disable_irq();
+        //__disable_irq();
 
         // send start of packet
         send_preamble();
 
         // send packet
-        size_t i;
         for (i = 0; i < PACKET_LEN+1; i++) {
             send_byte(packet[i]);
         }
@@ -84,7 +92,7 @@ extern "C" int main(void)
         send_byte(crc);
 
         // end sending bit, enable interrupts
-        __enable_irq();
+        //__enable_irq();
 
         // disable sound
         AudioNoInterrupts();
@@ -118,7 +126,8 @@ inline void send_preamble() {
 
 void send_byte(char c) {
     int i;
-    for (i = 0; i < 8; i++) {
+    // send each bit of c, starting at the highest bit
+    for (i = 7; i >= 0; i--) {
         int bit = (c>>i) & 1;
         if (bit) {
             send_bit_high();
@@ -129,7 +138,43 @@ void send_byte(char c) {
     }
 }
 
+#ifdef MANCHESTER
 inline void send_bit_high() {
+    // only need to start sending first pulse if prev. bit
+    //  was the same
+    if (last_bit == BIT_HIGH || last_bit == -1) {
+        AudioNoInterrupts();
+        synth1.begin(1.0, FREQ_HIGH, WAVEFORM);
+        AudioInterrupts();
+    }
+    delay(DURATION);
+
+    AudioNoInterrupts();
+    synth1.begin(1.0, FREQ_LOW, WAVEFORM);
+    AudioInterrupts();
+    delay(DURATION);
+    last_bit = BIT_HIGH;
+}
+
+inline void send_bit_low() {
+    // only need to start sending first pulse if prev. bit
+    //  was the same
+    if (last_bit == BIT_LOW || last_bit == -1) {
+        AudioNoInterrupts();
+        synth1.begin(1.0, FREQ_LOW, WAVEFORM);
+        AudioInterrupts();
+    }
+    delay(DURATION);
+
+    AudioNoInterrupts();
+    synth1.begin(1.0, FREQ_HIGH, WAVEFORM);
+    AudioInterrupts();
+    last_bit = BIT_LOW;
+    delay(DURATION);
+}
+#else
+inline void send_bit_high() {
+    // only need to send bit if last bit was different
     if (last_bit == BIT_LOW || last_bit == -1) {
         AudioNoInterrupts();
         synth1.begin(1.0, FREQ_HIGH, WAVEFORM);
@@ -140,6 +185,7 @@ inline void send_bit_high() {
 }
 
 inline void send_bit_low() {
+    // only need to send bit if last bit was different
     if (last_bit == BIT_HIGH || last_bit == -1) {
         AudioNoInterrupts();
         synth1.begin(1.0, FREQ_LOW, WAVEFORM);
@@ -148,3 +194,4 @@ inline void send_bit_low() {
     last_bit = BIT_LOW;
     delay(DURATION);
 }
+#endif
