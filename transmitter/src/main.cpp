@@ -126,7 +126,7 @@ void send_packet(char *packet) {
 
     // send packet
     int i;
-    for (i = 0; i < PACKET_LEN+1; i++) {
+    for (i = 0; i < PACKET_LEN; i++) {
         send_byte(packet[i]);
     }
 
@@ -147,22 +147,8 @@ void send_packet(char *packet) {
 
 // 8 pairs of low, high
 inline void send_preamble() {
-    send_bit_low();
-    send_bit_high();
-    send_bit_low();
-    send_bit_high();
-    send_bit_low();
-    send_bit_high();
-    send_bit_low();
-    send_bit_high();
-    send_bit_low();
-    send_bit_high();
-    send_bit_low();
-    send_bit_high();
-    send_bit_low();
-    send_bit_high();
-    send_bit_low();
-    send_bit_high();
+    send_byte('\x55');
+    send_byte('\x55');
 }
 
 void send_byte(char c) {
