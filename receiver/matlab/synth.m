@@ -10,11 +10,13 @@ function [out,overrun] = synth()
         index = 534201;
         for i = 1:104
             if m(i) == 1
-                signal(index:index+WINDOW-1) = sin(2*pi*8000/Fs*(1:WINDOW)');
+                signal(index:index+WINDOW-1) = sin(2*pi*9000/Fs*(1:WINDOW)');
+                signal(index+WINDOW:index+2*WINDOW-1) = sin(2*pi*10000/Fs*(1:WINDOW)');
             else
                 signal(index:index+WINDOW-1) = sin(2*pi*7000/Fs*(1:WINDOW)');
+                signal(index+WINDOW:index+2*WINDOW-1) = sin(2*pi*8000/Fs*(1:WINDOW)');
             end
-            index = index + WINDOW;
+            index = index + 2*WINDOW;
         end 
         t=1;
     end
@@ -25,7 +27,7 @@ function [out,overrun] = synth()
         out = signal(t + 1 : t + BUFFER);
         t = t + BUFFER;
     end
-    if t > 1500000
+    if t > 2000000
         t = 96000;
     end
     overrun = 0;
