@@ -14,8 +14,8 @@ TEENSY_CORE_SPEED = 72000000
 # configurable options
 OPTIONS = -DUSB_SERIAL -DLAYOUT_US_ENGLISH
 
-# Uncomment to enable Manchester encoding in transmitter
-OPTIONS += -DMANCHESTER
+# can be one of (vanilla, manchester, multiple)
+ENCODING = manchester
 
 # directory to build in
 BUILDDIR = $(abspath $(CURDIR)/build)
