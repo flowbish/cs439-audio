@@ -67,6 +67,10 @@ extern "C" int main(void) {
                 strncpy(packet, input.c_str(), PACKET_LEN);
 
                 send_packet_serial(packet);
+                
+                // wait extra time between each packet to let the receiver
+                //  settle
+                delay(3*DURATION);
             }
         }
         else if (!digitalRead(2)) {
