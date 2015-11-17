@@ -8,12 +8,12 @@
 %  OTHERS: requires audio input
 
 
-function [raw] = receive()
+function [raw] = receive_old4()
 
-  
+%{  
     %for DEBUG
     clear synth;
-
+%}
 
 % Define some constants:
 %   Fs: sample rate
@@ -388,11 +388,11 @@ function [raw] = receive()
     % load()
     %   load samples from buffer to audioIn
     function load()
-%        [temp,overrun] = step(recorder);
-      
+        [temp,overrun] = step(recorder);
+%{      
         % for DEBUG
         [temp,overrun] = synth();
-
+%}
         % if there is overrun, some samples are skipped
         if overrun > 0
             disp(['Overrun: ' num2str(overrun)]);
