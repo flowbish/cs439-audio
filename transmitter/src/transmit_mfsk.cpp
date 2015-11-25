@@ -65,7 +65,8 @@ inline void send_freq (int freq) {
 }
 
 void append_byte(char c) {
-    pending |= c << npending;
+    pending = pending << 8;
+    pending |= c;
     npending += 8;
 }
 
@@ -73,15 +74,18 @@ void send_byte (char c) {
     append_byte(c);
 
     while (npending >= bits_per_transmission) {
-        // send each 6 bits of pending in one symbol (transition)
-        symbol send = pending & 0x3F;
+        // extract the top bits_per_transmission bits from pending
+        int shift = npending - bits_per_transmission;
+        symbol send = (pending >> shift) & transmission_mask;
+
+        // send each 6 bits of pending in one transition
         int f0 = transition_freq(send, 0);
         int f1 = transition_freq(send, 1);
         send_freq(f0);
         send_freq(f1);
 
         // update pending bits
-        pending >>= bits_per_transmission;
+        pending >>= shift;
         npending -= bits_per_transmission;
     }
 }
