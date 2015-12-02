@@ -86,9 +86,9 @@ void send_packet_serial(char *packet) {
     char crc = crc8(packet, PACKET_LEN);
 
     // generate a string representing the bytes of the packet being sent
-    char packet_str[100], hex[8];
+    char packet_str[500], hex[8];
     size_t i;
-    sprintf(packet_str, "0x55 0x55");
+    memset(packet_str, 0, sizeof(packet_str));
     for (i = 0; i < PACKET_LEN; i++) {
         snprintf(hex, 7, " 0x%02x", packet[i]);
         strcat(packet_str, hex);
