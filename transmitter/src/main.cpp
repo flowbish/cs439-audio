@@ -15,8 +15,13 @@ void send_preamble(void);
 
 int main(void) {
 
-    // initialize serial connection
+    // initialize USB serial connection
     Serial.begin(115200);
+
+    // initialize UART serial connection
+    // RX1 - pin 0
+    // TX1 - pin 1
+    Serial1.begin(9600);
 
     // allocate audio memory
     AudioMemory(18);
@@ -24,7 +29,8 @@ int main(void) {
     // pin 2 is connected to a button to ground, for a simple demo
     pinMode(2, INPUT_PULLUP);
 
-	while (1) {
+    while (1) {
+      // check for input from USB serial
         if (Serial.available() > 0) {
             String input = Serial.readStringUntil('\n');
 
@@ -42,11 +48,21 @@ int main(void) {
                 delay(3*DURATION);
             }
         }
-        else if (!digitalRead(2)) {
+
+        // check for input from RS232
+        if (Serial1.available() > 0) {
+            String input = Serial1.readStringUntil(' ');
+            if (input != "" && input != " ") {
+                Serial.print(input);
+            }
+        }
+
+        // check for button press on pin 2
+        if (!digitalRead(2)) {
             // pin 2 connected to ground, send demo packet
             send_demo();
         }
-	}
+    }
 }
 
 /**
