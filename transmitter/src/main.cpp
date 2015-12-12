@@ -35,11 +35,18 @@ int main(void) {
             String input = Serial.readStringUntil('\n');
 
             // don't send packet if input is blank
-            if (input != "" && input != "\n") {
+            while (input != "" && input != "\n") {
                 // allocate packet buffer and set the bytes within
                 char packet[PACKET_LEN];
                 memset(packet, 0, sizeof(packet));
                 strncpy(packet, input.c_str(), PACKET_LEN);
+
+                if (input.length() > PACKET_LEN) {
+                    input = input.substring(PACKET_LEN, input.length());
+                }
+                else {
+                    input = "";
+                }
 
                 send_packet_serial(packet);
 
