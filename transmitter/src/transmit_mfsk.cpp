@@ -85,7 +85,7 @@ void send_byte (char c) {
         send_freq(f1);
 
         // update pending bits
-        pending >>= shift;
+        pending &= ~(transmission_mask << shift);
         npending -= bits_per_transmission;
     }
 }
