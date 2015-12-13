@@ -29,31 +29,16 @@ int main(void) {
     // pin 2 is connected to a button to ground, for a simple demo
     pinMode(2, INPUT_PULLUP);
 
+
+    // control whether we wait for ACK or not
+    int ackWaiting = 0;
+    String lastTransmitted = "";
+    String sending = "";
+
     while (1) {
         // check for input from USB serial
         if (Serial1.available() > 0) {
             String input = Serial.readStringUntil('\n');
-
-            // don't send packet if input is blank
-            while (input != "" && input != "\n") {
-                // allocate packet buffer and set the bytes within
-                char packet[get_mtu()];
-                memset(packet, 0, sizeof(packet));
-                strncpy(packet, input.c_str(), get_mtu());
-
-                if (input.length() > get_mtu()) {
-                    input = input.substring(get_mtu(), input.length());
-                }
-                else {
-                    input = "";
-                }
-
-                send_packet_serial(packet);
-
-                // wait extra time between each packet to let the receiver
-                //  settle
-                delay(3*get_duration());
-            }
         }
 
         // check for input from RS232
@@ -62,12 +47,35 @@ int main(void) {
             if (input != "" && input != " ") {
                 if (input.indexOf("ACK") == 0) {
                     // ACK response
+                    Serial.printf("{\"message\": \"ACK received\"}\r\n");
                 }
                 else if (input.indexOf("NACK") == 0) {
                     // NACK response
+                    Serial.printf("{\"message\": \"NACK received\"}\r\n");
                 }
                 else if (input.indexOf("FREQS") == 0) {
                     // set frequencies used
+                    int end = 0;
+                    if (input[input.length()-1] == '\n')
+                        end = 1;
+                    String freqs_str = input.substring(5, input.length()-end);
+                    // parse the frequencies out of this
+                    //int freqs[128] = {0};
+                    //int num_freqs = 0;
+                }
+                else if (input.indexOf("SWEEP") == 0) {
+                    send_sweep();
+                    Serial.printf("{\"message\": \"Sweeping possible frequencies\"}\r\n");
+                }
+                else if (input.indexOf("DURATION") == 0) {
+                    // set duration
+                    int end = 0;
+                    if (input[input.length()-1] == '\n')
+                        end = 1;
+                    String duration_str = input.substring(8, input.length()-end);
+                    int duration = duration_str.toInt();
+                    set_duration(duration);
+                    Serial.printf("{\"message\": \"Setting duration to %d\"}\r\n", duration);
                 }
                 else if (input.indexOf("MTU") == 0) {
                     // set MTU
@@ -78,11 +86,38 @@ int main(void) {
                     String mtu_str = input.substring(3, input.length()-end);
                     int mtu = mtu_str.toInt();
                     set_mtu(mtu);
-                    Serial.printf("Setting MTU to %d\r\n", mtu);
+                    Serial.printf("{\"message\": \"Setting MTU to %d\"}\r\n", mtu);
                 }
                 else {
                     // unknown input
                     //Serial.printf("Unknown input received: \"%s\"", input.c_str());
+
+                    // TODO: move back to other area
+                    sending += input;
+
+                    // don't send packet if input is blank
+                    while (sending != "" && sending != "\n") {
+                        // allocate packet buffer and set the bytes within
+                        char packet[get_mtu()];
+                        memset(packet, 0, sizeof(packet));
+                        strncpy(packet, sending.c_str(), get_mtu());
+
+                        if (sending.length() > get_mtu()) {
+                            sending = sending.substring(get_mtu(), sending.length());
+                        }
+                        else {
+                            sending = "";
+                        }
+
+                        send_packet_serial(packet);
+
+                        ackWaiting = 1;
+                        ackWaiting++;
+
+                        // wait extra time between each packet to let the receiver
+                        //  settle
+                        delay(3*get_duration());
+                    }
                 }
             }
         }
@@ -116,15 +151,28 @@ void send_packet_serial(char *packet) {
     char crc = crc8(packet, get_mtu());
 
     // generate a string representing the bytes of the packet being sent
-    char packet_str[500], hex[8];
-    size_t i;
+    char packet_str[get_mtu()*10+40], hex[8];
     memset(packet_str, 0, sizeof(packet_str));
+
+    // begin the json string
+    strcat(packet_str, "{\"data\": [");
+
+    size_t i;
     for (i = 0; i < get_mtu(); i++) {
-        snprintf(hex, 7, " 0x%02x", packet[i]);
+        if (i != 0) {
+            strcat(packet_str, ", ");
+        }
+        snprintf(hex, 7, "\"0x%02x\"", packet[i]);
         strcat(packet_str, hex);
     }
-    sprintf(hex, "0x%02x\r\n", crc);
+
+    strcat(packet_str, "], \"crc\":");
+    sprintf(hex, "\"0x%02x\"", crc);
     strcat(packet_str, hex);
+
+    // finish the json
+    strcat(packet_str, "}\r\n");
+
     Serial.print(packet_str);
 
     // send the packet!

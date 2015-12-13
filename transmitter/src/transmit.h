@@ -13,6 +13,7 @@ void send_start(void);
 void send_byte(char);
 void send_preamble(void);
 void send_stop(void);
+void send_sweep(void);
 void set_mtu(unsigned int);
 unsigned int get_mtu(void);
 void set_duration(unsigned int);

@@ -18,8 +18,8 @@ AudioConnection          patchCord1(synth1, dac1);
 typedef uint8_t symbol;
 
 const int WAVEFORM = WAVEFORM_SINE;
-const int FREQS[] = {6000, 6200, 6400, 6600, 6800, 7000, 7200, 7400, 7600};
-const size_t NFREQS = 9;
+int FREQS[] = {6000, 6200, 6400, 6600, 6800, 7000, 7200, 7400, 7600};
+size_t NFREQS = 9;
 const size_t SYMBOL_MAX = NFREQS * NFREQS - NFREQS - 1;
 const size_t bits_per_transmission = 6;
 const size_t transmission_mask = (2 << bits_per_transmission) - 1;
@@ -115,6 +115,19 @@ void send_stop () {
     AudioNoInterrupts();
     synth1.begin(0.0, 0, WAVEFORM);
     AudioInterrupts();
+}
+
+void send_sweep() {
+    send_start();
+    send_freq(7000);
+    delay(50);
+    send_freq(8000);
+    delay(50);
+    for (int i = 100; i < 20000; i += 100) {
+        send_freq(i);
+        delay(10);
+    }
+    send_stop();
 }
 
 #endif
