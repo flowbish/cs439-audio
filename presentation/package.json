@@ -1,0 +1,12 @@
+{
+    "name": "cs439-audio-wireless-demo",
+    "version": "0.0.1",
+    "description": "awful demo app for a cool project?!",
+    "dependencies": {
+        "express": "latest",
+        "socket.io": "latest",
+        "socket.io-client": "latest",
+        "http": "latest",
+        "serialport": "latest"
+    }
+}
