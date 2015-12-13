@@ -61,7 +61,7 @@ inline void send_freq (int freq) {
         AudioInterrupts();
     }
     last_freq = freq;
-    delay(DURATION);
+    delay(get_duration());
 }
 
 void append_byte(char c) {

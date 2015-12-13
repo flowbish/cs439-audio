@@ -17,12 +17,12 @@ void frame_send(int8_t *packet) {
     // start sending bits, disable interrupts
     __disable_irq();
 
-    for (int i = 0; i < PACKET_LEN; i++) {
+    for (unsigned int i = 0; i < get_mtu(); i++) {
         send_byte(packet[i]);
     }
 
     // calculate and send crc8
-    char crc = crc8(packet, PACKET_LEN);
+    char crc = crc8(packet, get_mtu());
     send_byte(crc);
 
     // start sending bits, disable interrupts

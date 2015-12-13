@@ -30,19 +30,19 @@ int main(void) {
     pinMode(2, INPUT_PULLUP);
 
     while (1) {
-      // check for input from USB serial
-        if (Serial.available() > 0) {
+        // check for input from USB serial
+        if (Serial1.available() > 0) {
             String input = Serial.readStringUntil('\n');
 
             // don't send packet if input is blank
             while (input != "" && input != "\n") {
                 // allocate packet buffer and set the bytes within
-                char packet[PACKET_LEN];
+                char packet[get_mtu()];
                 memset(packet, 0, sizeof(packet));
-                strncpy(packet, input.c_str(), PACKET_LEN);
+                strncpy(packet, input.c_str(), get_mtu());
 
-                if (input.length() > PACKET_LEN) {
-                    input = input.substring(PACKET_LEN, input.length());
+                if (input.length() > get_mtu()) {
+                    input = input.substring(get_mtu(), input.length());
                 }
                 else {
                     input = "";
@@ -52,15 +52,38 @@ int main(void) {
 
                 // wait extra time between each packet to let the receiver
                 //  settle
-                delay(3*DURATION);
+                delay(3*get_duration());
             }
         }
 
         // check for input from RS232
-        if (Serial1.available() > 0) {
-            String input = Serial1.readStringUntil(' ');
+        if (Serial.available() > 0) {
+            String input = Serial.readStringUntil('\n');
             if (input != "" && input != " ") {
-                Serial.print(input);
+                if (input.indexOf("ACK") == 0) {
+                    // ACK response
+                }
+                else if (input.indexOf("NACK") == 0) {
+                    // NACK response
+                }
+                else if (input.indexOf("FREQS") == 0) {
+                    // set frequencies used
+                }
+                else if (input.indexOf("MTU") == 0) {
+                    // set MTU
+                    // formatted "MTU<number>\n"
+                    int end = 0;
+                    if (input[input.length()-1] == '\n')
+                        end = 1;
+                    String mtu_str = input.substring(3, input.length()-end);
+                    int mtu = mtu_str.toInt();
+                    set_mtu(mtu);
+                    Serial.printf("Setting MTU to %d\r\n", mtu);
+                }
+                else {
+                    // unknown input
+                    //Serial.printf("Unknown input received: \"%s\"", input.c_str());
+                }
             }
         }
 
@@ -77,9 +100,9 @@ int main(void) {
  */
 void send_demo() {
     // allocate packet buffer and set the bytes within
-    char packet[PACKET_LEN];
+    char packet[get_mtu()];
     memset(packet, 0, sizeof(packet));
-    strncpy(packet, "Hi Robin!!", PACKET_LEN);
+    strncpy(packet, "Hi Robin!!", get_mtu());
 
     send_packet(packet);
 }
@@ -90,13 +113,13 @@ void send_demo() {
  */
 void send_packet_serial(char *packet) {
     // calculate CRC8
-    char crc = crc8(packet, PACKET_LEN);
+    char crc = crc8(packet, get_mtu());
 
     // generate a string representing the bytes of the packet being sent
     char packet_str[500], hex[8];
     size_t i;
     memset(packet_str, 0, sizeof(packet_str));
-    for (i = 0; i < PACKET_LEN; i++) {
+    for (i = 0; i < get_mtu(); i++) {
         snprintf(hex, 7, " 0x%02x", packet[i]);
         strcat(packet_str, hex);
     }
@@ -109,7 +132,7 @@ void send_packet_serial(char *packet) {
 }
 
 void send_packet(char *packet) {
-    // packet must be at least PACKET_LEN bytes (or must it?)
+    // packet must be at least get_mtu() bytes (or must it?)
   frame_init();
   frame_send((int8_t*)packet);
   frame_end();
