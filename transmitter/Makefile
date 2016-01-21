@@ -14,8 +14,8 @@ TEENSY_CORE_SPEED = 72000000
 # configurable options
 OPTIONS = -DUSB_SERIAL -DLAYOUT_US_ENGLISH
 
-# Uncomment to enable Manchester encoding in transmitter
-OPTIONS += -DMANCHESTER
+# can be one of (vanilla, manchester, mfsk)
+ENCODING = mfsk
 
 # directory to build in
 BUILDDIR = $(abspath $(CURDIR)/build)
@@ -30,12 +30,12 @@ BUILDDIR = $(abspath $(CURDIR)/build)
 TOOLSPATH = $(CURDIR)/tools
 
 ifeq ($(OS),Windows_NT)
-    $(error What is Win Dose?)
+	$(error What is Win Dose?)
 else
-    UNAME_S := $(shell uname -s)
-    ifeq ($(UNAME_S),Darwin)
-        TOOLSPATH = /Applications/Arduino.app/Contents/Java/hardware/tools/
-    endif
+	UNAME_S := $(shell uname -s)
+	ifeq ($(UNAME_S),Darwin)
+		TOOLSPATH = /Applications/Arduino.app/Contents/Java/hardware/tools/
+	endif
 endif
 
 # path location for Teensy 3 core
@@ -53,6 +53,13 @@ COMPILERPATH = $(TOOLSPATH)/arm/bin
 
 # CPPFLAGS = compiler options for C and C++
 CPPFLAGS = -Wall -Werror -g -Os -mthumb -ffunction-sections -fdata-sections -nostdlib -MMD $(OPTIONS) -DTEENSYDUINO=124 -DF_CPU=$(TEENSY_CORE_SPEED) -Isrc -I$(COREPATH)
+ifeq ($(ENCODING), vanilla)
+	CPPFLAGS += -DENCODING=1000
+else ifeq ($(ENCODING), manchester)
+	CPPFLAGS += -DENCODING=2000
+else ifeq ($(ENCODING), mfsk)
+	CPPFLAGS += -DENCODING=3000
+endif
 
 # compiler options for C++ only
 CXXFLAGS = -std=gnu++0x -felide-constructors -fno-exceptions -fno-rtti
@@ -68,24 +75,24 @@ LIBS = -lm
 
 # compiler options specific to teensy version
 ifeq ($(TEENSY), 30)
-    MCU = mk20dx128
-    CPPFLAGS += -D__MK20DX128__ -mcpu=cortex-m4
-    LDFLAGS += -mcpu=cortex-m4 -T$(LDSCRIPT)
+	MCU = mk20dx128
+	CPPFLAGS += -D__MK20DX128__ -mcpu=cortex-m4
+	LDFLAGS += -mcpu=cortex-m4 -T$(LDSCRIPT)
 else
-    ifeq ($(TEENSY), 31)
-        MCU = mk20dx256
-        CPPFLAGS += -D__MK20DX256__ -mcpu=cortex-m4
-        LDFLAGS += -mcpu=cortex-m4 -T$(LDSCRIPT)
-    else
-        ifeq ($(TEENSY), LC)
-            MCU = mkl26z64
-            CPPFLAGS += -D__MKL26Z64__ -mcpu=cortex-m0plus
-            LDFLAGS += -mcpu=cortex-m0plus -T$(LDSCRIPT)
-            LIBS += -larm_cortexM0l_math
-        else
-            $(error Invalid setting for TEENSY)
-        endif
-    endif
+	ifeq ($(TEENSY), 31)
+		MCU = mk20dx256
+		CPPFLAGS += -D__MK20DX256__ -mcpu=cortex-m4
+		LDFLAGS += -mcpu=cortex-m4 -T$(LDSCRIPT)
+	else
+		ifeq ($(TEENSY), LC)
+			MCU = mkl26z64
+			CPPFLAGS += -D__MKL26Z64__ -mcpu=cortex-m0plus
+			LDFLAGS += -mcpu=cortex-m0plus -T$(LDSCRIPT)
+			LIBS += -larm_cortexM0l_math
+		else
+			$(error Invalid setting for TEENSY)
+		endif
+	endif
 endif
 
 # set ld script file
@@ -99,10 +106,10 @@ else
 endif
 
 # names for the compiler programs
-CC = $(abspath $(COMPILERPATH))/arm-none-eabi-gcc
-CXX = $(abspath $(COMPILERPATH))/arm-none-eabi-g++
-OBJCOPY = $(abspath $(COMPILERPATH))/arm-none-eabi-objcopy
-SIZE = $(abspath $(COMPILERPATH))/arm-none-eabi-size
+CC = arm-none-eabi-gcc
+CXX = arm-none-eabi-g++
+OBJCOPY = arm-none-eabi-objcopy
+SIZE = arm-none-eabi-size
 
 # automatically create lists of the sources and objects
 LC_FILES := $(wildcard $(LIBRARYPATH)/*/*.c)
@@ -118,6 +125,8 @@ L_INC := $(foreach lib,$(filter %/, $(wildcard $(LIBRARYPATH)/*/)), -I$(lib))
 
 SOURCES := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o) $(INO_FILES:.ino=.o) $(TC_FILES:.c=.o) $(TCPP_FILES:.cpp=.o) $(LC_FILES:.c=.o) $(LCPP_FILES:.cpp=.o)
 OBJS := $(foreach src,$(SOURCES), $(BUILDDIR)/$(src))
+
+.PHONY: all build hex post_compile reboot upload clean
 
 all: hex
 
